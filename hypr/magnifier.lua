@@ -62,6 +62,7 @@ local SCHEMA = {
   max_zoom         = { kind = "number", min = 2.0, max = 40.0, default = 15.0 },
   restore_zoom     = { kind = "boolean", default = true },
   unzoom_on_lock   = { kind = "boolean", default = true },
+  lock_screen_zoom = { kind = "boolean", default = false },
 }
 
 local KEYS = {}
@@ -418,6 +419,14 @@ local function throttled(fn)
   end
 end
 
+-- A zoom shortcut; with lock_screen_zoom on it also works while the screen
+-- is locked (Hyprland drops other binds at the lock screen).
+local function zoom_bind(keys, fn, opts, description)
+  opts = opts or {}
+  if S.lock_screen_zoom then opts.locked = true end
+  bind(keys, fn, opts, description)
+end
+
 local function configure_binds()
   clear_binds()
 
@@ -427,7 +436,7 @@ local function configure_binds()
     -- Omarchy's own zoom keys, routed through the smooth engine.
     pcall(hl.unbind, "SUPER + CTRL + Z")
     pcall(hl.unbind, "SUPER + CTRL + ALT + Z")
-    bind("SUPER + CTRL + Z", M.zoom_in, { repeating = true }, "Zoom in")
+    zoom_bind("SUPER + CTRL + Z", M.zoom_in, { repeating = true }, "Zoom in")
     -- `locked`: also works at the lock screen.
     bind("SUPER + CTRL + ALT + Z", M.reset, { locked = true }, "Reset zoom")
 
@@ -444,22 +453,22 @@ local function configure_binds()
   end
 
   if S.scroll_enabled then
-    bind(S.modifier .. " + mouse_up", function() M.scroll(1) end, nil, "Zoom in (scroll)")
-    bind(S.modifier .. " + mouse_down", function() M.scroll(-1) end, nil, "Zoom out (scroll)")
+    zoom_bind(S.modifier .. " + mouse_up", function() M.scroll(1) end, nil, "Zoom in (scroll)")
+    zoom_bind(S.modifier .. " + mouse_down", function() M.scroll(-1) end, nil, "Zoom out (scroll)")
   end
 
   if S.keyboard_enabled then
-    bind("SUPER + ALT + code:17", M.toggle, nil, "Toggle zoom")
-    bind("SUPER + ALT + equal", M.zoom_in, { repeating = true }, "Zoom in")
-    bind("SUPER + ALT + minus", M.zoom_out, { repeating = true }, "Zoom out")
-    bind("SUPER + ALT + backslash", M.toggle_smooth, nil, "Toggle smooth zoom images")
+    zoom_bind("SUPER + ALT + code:17", M.toggle, nil, "Toggle zoom")
+    zoom_bind("SUPER + ALT + equal", M.zoom_in, { repeating = true }, "Zoom in")
+    zoom_bind("SUPER + ALT + minus", M.zoom_out, { repeating = true }, "Zoom out")
+    zoom_bind("SUPER + ALT + backslash", M.toggle_smooth, nil, "Toggle smooth zoom images")
   end
 
   if S.hold_enabled then
-    bind("SUPER + ALT + Z", M.hold_press, nil, "Hold to toggle zoom")
+    zoom_bind("SUPER + ALT + Z", M.hold_press, nil, "Hold to toggle zoom")
     -- Fires on any Z release, whatever modifiers are left, and passes the
     -- release on to the app; it does nothing unless a hold is in progress.
-    bind("Z", M.hold_release, { release = true, ignore_mods = true, non_consuming = true })
+    zoom_bind("Z", M.hold_release, { release = true, ignore_mods = true, non_consuming = true })
   end
 end
 

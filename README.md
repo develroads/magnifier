@@ -34,6 +34,9 @@ zoom.
   zooms out at once, and glides back to your zoom after you unlock. You can
   turn this off. Super + Ctrl + Alt + Z also resets the zoom at the lock
   screen.
+- **Zoom on the lock screen (optional).** Turn on "Allow zooming on the lock
+  screen" and all zoom shortcuts keep working while the screen is locked,
+  as on macOS. Off by default.
 - Follows the Omarchy theme. All text is in a translation catalog
   (`i18n/en.json`).
 
@@ -102,12 +105,15 @@ IPC: `omarchy-shell smooth-magnifier toggleZoom | zoomIn | zoomOut | resetZoom |
   is gone.
 - After a config reload, while you are zoomed in, the screen is at 1x for the
   moment it takes Hyprland to report the reload (typically under 50 ms).
-- Screen lock: Hyprland reports no lock event and Omarchy keeps its lock
-  state private, so while you are zoomed in (and only then) the panel reads
-  the monitor list over Hyprland's socket every 250 ms, as Omarchy's bar
-  does, and looks for `LOCK` the way `omarchy-hyprland-session-locked` does.
-  The lock screen may show zoomed for up to about half a second before it
-  zooms out.
+- Screen lock: Hyprland sends no lock event and Omarchy keeps its lock state
+  private, so while you are zoomed in (and only then) the panel asks
+  Hyprland every 250 ms with `hyprctl locked`. The lock screen may show
+  zoomed for up to about half a second before it zooms out.
+- Why not a Hyprland config drop-in? Omarchy has no folder that loads
+  add-on Lua today. Open PR omacom/omarchy#17432 proposes
+  `~/.config/hypr/extensions/`. If it lands, the engine can load from there
+  as well, which removes the reload blink. The engine already ignores a
+  second load.
 
 **Changes to Hyprland's behaviour.** Be aware of these before installing:
 
@@ -129,6 +135,16 @@ IPC: `omarchy-shell smooth-magnifier toggleZoom | zoomIn | zoomOut | resetZoom |
 can't be steered from outside. Split-screen and picture-in-picture zoom,
 "zoom follows keyboard focus", and "speak items under pointer" are therefore
 not available.
+
+## Troubleshooting
+
+```bash
+omarchy-shell smooth-magnifier diagnostics
+```
+
+This prints what the panel sees: whether the engine is loaded, the zoom,
+the lock settings, and the last lock-watcher events. Please include it in
+bug reports.
 
 ## Development
 

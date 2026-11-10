@@ -7,7 +7,7 @@ const vm = require("vm")
 
 const src = fs.readFileSync(path.join(__dirname, "..", "Model.js"), "utf8").replace(/^\.pragma library\s*/, "")
 const M = {}
-vm.runInNewContext(src + "\nthis.M = { MODIFIERS, normalize, luaTable, setCall, zoomCall, scrollCall, callFor, parseState, parseZoom, zoomToSlider, sliderToZoom, chordParts, setEnginePath, loadError, sessionLocked }", M)
+vm.runInNewContext(src + "\nthis.M = { MODIFIERS, normalize, luaTable, setCall, zoomCall, scrollCall, callFor, parseState, parseZoom, zoomToSlider, sliderToZoom, chordParts, setEnginePath, loadError, parseLocked }", M)
 const m = M.M
 
 let failures = 0
@@ -51,10 +51,8 @@ check(m.loadError("error: cannot open file") === "cannot open file" && m.loadErr
 check(m.loadError("error: " + "x".repeat(1000)).length === 300, "load error text bounded")
 
 // Screen lock detection, from monitors' lastIpcObject.
-check(m.sessionLocked([{ solitaryBlockedBy: ["WINDOWS", "LOCK"] }]), "LOCK detected")
-check(!m.sessionLocked([{ solitaryBlockedBy: ["WINDOWS"] }, { solitaryBlockedBy: [] }]), "no lock")
-check(!m.sessionLocked([null, undefined, {}, { solitaryBlockedBy: "LOCK" }]), "missing or malformed data is not a lock")
-check(m.sessionLocked([{}, { solitaryBlockedBy: ["LOCK"] }]), "lock on any monitor counts")
+check(m.parseLocked("true\n") === true && m.parseLocked("false") === false, "hyprctl locked parsed")
+check(m.parseLocked("") === null && m.parseLocked("ok") === null && m.parseLocked("True") === null, "unreadable lock reply is not a decision")
 check(m.parseState(JSON.stringify({ engine: "smooth-magnifier", zoom: 1, lock_active: true, settings: {} })).lockActive === true, "lock state parsed")
 check(m.parseState(JSON.stringify({ engine: "smooth-magnifier", zoom: 1, lock_active: "yes", settings: {} })).lockActive === false, "lock state must be boolean")
 check(m.callFor("lockBegin").endsWith("SmoothMagnifier.lock_begin() or 'null'"), "lock call")

@@ -53,5 +53,7 @@
   "view.restoreDesc": "Start where you left off",
   "view.unzoomLock": "Zoom out when the screen locks",
   "view.unzoomLockDesc": "The lock screen opens at 1×; unlocking brings your zoom back",
+  "view.lockZoom": "Allow zooming on the lock screen",
+  "view.lockZoomDesc": "Your zoom shortcuts keep working while the screen is locked",
   "view.resetSettings": "Restore defaults"
 }

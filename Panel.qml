@@ -109,6 +109,7 @@ Panel {
     loadError = state.ok ? "" : (enginePathOk ? Model.loadError(text) : "unsupported plugin path")
     if (!state.ok) return
     if (dragZoom < 1 && pendingZoom < 1) zoom = state.zoom
+    if (state.lockActive !== engineLockActive) logLock("engine reports lock_active " + state.lockActive + " at zoom " + state.zoom)
     engineLockActive = state.lockActive
     // Keep optimistic values for changes still on their way.
     var merged = state.settings
@@ -153,30 +154,60 @@ Panel {
   }
 
   // ----------------------------------------------------------- screen lock
-  // Hyprland zooms the lock screen too and reports no lock event, and
-  // Omarchy keeps its lock state private. While zoomed in (and only then),
-  // read the monitors over Hyprland's socket, as Omarchy's bar does, and
-  // look for LOCK the way omarchy-hyprland-session-locked does. The engine
-  // owns the lock state, so a shell restart mid-lock picks it up again.
+  // Hyprland zooms the lock screen too and sends no lock event, and Omarchy
+  // keeps its lock state private. While zoomed in (and only then), ask
+  // Hyprland directly with `hyprctl locked`. The engine owns the lock state,
+  // so a shell restart mid-lock picks it up again.
   property bool engineLockActive: false
+  property int lockTicks: 0
+  property var lastLocked: null
+  // Last lock-watcher events, shown by the `diagnostics` IPC call.
+  property var lockLog: []
+
+  function logLock(message) {
+    var next = lockLog.slice(-39)
+    next.push(new Date().toISOString().slice(11, 23) + " " + message)
+    lockLog = next
+  }
+
+  function onLockProbe(text) {
+    var locked = Model.parseLocked(text)
+    if (locked === null) {
+      if (lastLocked !== "unreadable") logLock("hyprctl locked: unreadable reply")
+      lastLocked = "unreadable"
+      return
+    }
+    if (locked !== lastLocked) logLock("hyprctl locked: " + locked + " (zoomed " + zoomed + ", engine lock " + engineLockActive + ")")
+    lastLocked = locked
+    if (locked && zoomed && !engineLockActive) {
+      engineLockActive = true
+      logLock("lock seen while zoomed: zooming out")
+      engineAction("lockBegin")
+    } else if (!locked && engineLockActive) {
+      engineLockActive = false
+      logLock("unlocked: restoring zoom")
+      engineAction("lockEnd")
+    }
+  }
+
+  Process {
+    id: lockProbe
+    command: ["hyprctl", "locked"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.onLockProbe(text)
+    }
+  }
 
   Timer {
+    id: lockWatch
     interval: 250
     repeat: true
     running: root.engineReady && (root.engineLockActive || (root.s.unzoom_on_lock && root.zoomed))
+    onRunningChanged: root.logLock("watcher " + (running ? "started" : "stopped"))
     onTriggered: {
-      var monitors = Hyprland.monitors.values
-      var objects = []
-      for (var i = 0; i < monitors.length; i++) objects.push(monitors[i].lastIpcObject)
-      var locked = Model.sessionLocked(objects)
-      if (locked && root.zoomed && !root.engineLockActive) {
-        root.engineLockActive = true
-        root.engineAction("lockBegin")
-      } else if (!locked && root.engineLockActive) {
-        root.engineLockActive = false
-        root.engineAction("lockEnd")
-      }
-      Hyprland.refreshMonitors()
+      root.lockTicks++
+      if (!lockProbe.running) lockProbe.running = true
     }
   }
 
@@ -202,6 +233,15 @@ Panel {
       if (root.pages.indexOf(name) < 0) return
       root.page = name
       root.open()
+    }
+    // For bug reports: what the panel and its lock watcher currently see.
+    function diagnostics(): string {
+      return JSON.stringify({
+        engineReady: root.engineReady, loadError: root.loadError, zoom: root.zoom, zoomed: root.zoomed,
+        unzoomOnLock: root.s.unzoom_on_lock, lockScreenZoom: root.s.lock_screen_zoom,
+        engineLockActive: root.engineLockActive, lastLocked: root.lastLocked,
+        watcherRunning: lockWatch.running, watcherTicks: root.lockTicks, lockLog: root.lockLog
+      }, null, 2)
     }
   }
 
@@ -633,6 +673,12 @@ Panel {
               key: "unzoom_on_lock"
               label: strings.t("view.unzoomLock")
               description: strings.t("view.unzoomLockDesc")
+            }
+
+            SettingToggle {
+              key: "lock_screen_zoom"
+              label: strings.t("view.lockZoom")
+              description: strings.t("view.lockZoomDesc")
             }
 
             // ---------- Advanced (collapsed until asked for) ----------

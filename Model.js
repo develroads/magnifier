@@ -22,7 +22,8 @@ var SCHEMA = {
   min_zoom:         { kind: "number", min: 1.25, max: 10.0, value: 2.0 },
   max_zoom:         { kind: "number", min: 2.0, max: 40.0, value: 15.0 },
   restore_zoom:     { kind: "boolean", value: true },
-  unzoom_on_lock:   { kind: "boolean", value: true }
+  unzoom_on_lock:   { kind: "boolean", value: true },
+  lock_screen_zoom: { kind: "boolean", value: false }
 }
 
 var MAX_RESPONSE = 8192
@@ -187,14 +188,11 @@ function chordParts(chord) {
   })
 }
 
-// True when Hyprland holds a session lock: an active lock is one of the
-// reasons a monitor cannot go solitary (`LOCK` in solitaryBlockedBy), which
-// is also how Omarchy's omarchy-hyprland-session-locked detects it.
-function sessionLocked(monitorIpcObjects) {
-  var list = monitorIpcObjects || []
-  for (var i = 0; i < list.length && i < 32; i++) {
-    var b = list[i] && list[i].solitaryBlockedBy
-    if (Array.isArray(b) && b.indexOf("LOCK") >= 0) return true
-  }
-  return false
+// `hyprctl locked` answers "true" or "false"; anything else is unreadable
+// (null), so the watcher does nothing rather than guess.
+function parseLocked(text) {
+  var raw = String(text || "").trim()
+  if (raw === "true") return true
+  if (raw === "false") return false
+  return null
 }

@@ -190,6 +190,12 @@ SmoothMagnifier.lock_begin()
 check(math.abs(hl.cfg["cursor.zoom_factor"] - 3.5) < 1e-3, "lock handling can be turned off")
 SmoothMagnifier.set({ unzoom_on_lock = true })
 check(hl.find("SUPER + CTRL + ALT + Z").opts.locked == true, "reset key works at the lock screen")
+check(not hl.find("SUPER + ALT + equal").opts.locked and not hl.find("CTRL + ALT + mouse_up").opts.locked, "zoom keys off at the lock screen by default")
+SmoothMagnifier.set({ lock_screen_zoom = true })
+check(hl.find("SUPER + ALT + equal").opts.locked == true and hl.find("CTRL + ALT + mouse_up").opts.locked == true and hl.find("SUPER + ALT + code:17").opts.locked == true, "lock screen zoom: zoom keys and scroll work while locked")
+check(not hl.find("SUPER + mouse_down").opts.locked, "lock screen zoom: workspace scrolling still blocked at the lock screen")
+SmoothMagnifier.set({ lock_screen_zoom = false })
+check(not hl.find("SUPER + ALT + equal").opts.locked, "lock screen zoom can be turned back off")
 
 -- Users who turned Omarchy's default bindings off do not get them back.
 _G.SmoothMagnifier = nil

@@ -21,7 +21,8 @@ var SCHEMA = {
   smoothness:       { kind: "number", min: 0.0, max: 1.0, value: 0.5 },
   min_zoom:         { kind: "number", min: 1.25, max: 10.0, value: 2.0 },
   max_zoom:         { kind: "number", min: 2.0, max: 40.0, value: 15.0 },
-  restore_zoom:     { kind: "boolean", value: true }
+  restore_zoom:     { kind: "boolean", value: true },
+  unzoom_on_lock:   { kind: "boolean", value: true }
 }
 
 var MAX_RESPONSE = 8192
@@ -86,7 +87,9 @@ var CALLS = {
   reset: "SmoothMagnifier.reset()",
   zoomIn: "SmoothMagnifier.zoom_in()",
   zoomOut: "SmoothMagnifier.zoom_out()",
-  resetSettings: "SmoothMagnifier.reset_settings()"
+  resetSettings: "SmoothMagnifier.reset_settings()",
+  lockBegin: "SmoothMagnifier.lock_begin()",
+  lockEnd: "SmoothMagnifier.lock_end()"
 }
 
 // Where hypr/magnifier.lua lives; set once by the panel. The path is written
@@ -146,6 +149,7 @@ function parseState(text) {
   return {
     ok: true,
     zoom: parseZoom(data.zoom),
+    lockActive: data.lock_active === true,
     version: typeof data.version === "string" ? data.version.slice(0, 16) : "",
     settings: settings
   }
@@ -181,4 +185,16 @@ function chordParts(chord) {
     if (k === "SHIFT") return "Shift"
     return k
   })
+}
+
+// True when Hyprland holds a session lock: an active lock is one of the
+// reasons a monitor cannot go solitary (`LOCK` in solitaryBlockedBy), which
+// is also how Omarchy's omarchy-hyprland-session-locked detects it.
+function sessionLocked(monitorIpcObjects) {
+  var list = monitorIpcObjects || []
+  for (var i = 0; i < list.length && i < 32; i++) {
+    var b = list[i] && list[i].solitaryBlockedBy
+    if (Array.isArray(b) && b.indexOf("LOCK") >= 0) return true
+  }
+  return false
 }

@@ -109,6 +109,7 @@ Panel {
     loadError = state.ok ? "" : (enginePathOk ? Model.loadError(text) : "unsupported plugin path")
     if (!state.ok) return
     if (dragZoom < 1 && pendingZoom < 1) zoom = state.zoom
+    engineLockActive = state.lockActive
     // Keep optimistic values for changes still on their way.
     var merged = state.settings
     if (hasPendingSettings) merged = Object.assign({}, merged, pendingSettings)
@@ -148,6 +149,34 @@ Panel {
     target: Hyprland
     function onRawEvent(event) {
       if (event.name === "configreloaded") root.engineAction("state")
+    }
+  }
+
+  // ----------------------------------------------------------- screen lock
+  // Hyprland zooms the lock screen too and reports no lock event, and
+  // Omarchy keeps its lock state private. While zoomed in (and only then),
+  // read the monitors over Hyprland's socket, as Omarchy's bar does, and
+  // look for LOCK the way omarchy-hyprland-session-locked does. The engine
+  // owns the lock state, so a shell restart mid-lock picks it up again.
+  property bool engineLockActive: false
+
+  Timer {
+    interval: 250
+    repeat: true
+    running: root.engineReady && (root.engineLockActive || (root.s.unzoom_on_lock && root.zoomed))
+    onTriggered: {
+      var monitors = Hyprland.monitors.values
+      var objects = []
+      for (var i = 0; i < monitors.length; i++) objects.push(monitors[i].lastIpcObject)
+      var locked = Model.sessionLocked(objects)
+      if (locked && root.zoomed && !root.engineLockActive) {
+        root.engineLockActive = true
+        root.engineAction("lockBegin")
+      } else if (!locked && root.engineLockActive) {
+        root.engineLockActive = false
+        root.engineAction("lockEnd")
+      }
+      Hyprland.refreshMonitors()
     }
   }
 
@@ -598,6 +627,12 @@ Panel {
               key: "restore_zoom"
               label: strings.t("view.restore")
               description: strings.t("view.restoreDesc")
+            }
+
+            SettingToggle {
+              key: "unzoom_on_lock"
+              label: strings.t("view.unzoomLock")
+              description: strings.t("view.unzoomLockDesc")
             }
 
             // ---------- Advanced (collapsed until asked for) ----------

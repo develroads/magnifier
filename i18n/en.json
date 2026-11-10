@@ -51,5 +51,7 @@
   "view.max": "Maximum zoom",
   "view.restore": "Restore zoom at login",
   "view.restoreDesc": "Start where you left off",
+  "view.unzoomLock": "Zoom out when the screen locks",
+  "view.unzoomLockDesc": "The lock screen opens at 1×; unlocking brings your zoom back",
   "view.resetSettings": "Restore defaults"
 }

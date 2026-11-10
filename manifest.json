@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.develroads.smooth-magnifier",
   "name": "Smooth Magnifier",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "develroads",
   "license": "MIT",
   "description": "Smooth, macOS-style screen zoom with scroll and keyboard control, and a settings panel in the bar.",

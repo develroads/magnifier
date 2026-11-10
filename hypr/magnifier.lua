@@ -61,6 +61,7 @@ local SCHEMA = {
   min_zoom         = { kind = "number", min = 1.25, max = 10.0, default = 2.0 },
   max_zoom         = { kind = "number", min = 2.0, max = 40.0, default = 15.0 },
   restore_zoom     = { kind = "boolean", default = true },
+  unzoom_on_lock   = { kind = "boolean", default = true },
 }
 
 local KEYS = {}
@@ -209,8 +210,12 @@ local function apply()
 end
 
 local session_zoom = nil   -- last zoom written to SESSION_FILE
+local lock_active = false  -- zoomed out because the screen is locked
+local lock_zoom = 1        -- zoom to return to after unlocking
 
 local function persist_zoom()
+  -- While locked, the saved level stays the one from before the lock.
+  if lock_active then return end
   local z = current_zoom()
   local text = string.format("%.4f\n", z)
   if SESSION_FILE and not (session_zoom and math.abs(z - session_zoom) < 1e-4) then
@@ -365,6 +370,30 @@ function M.toggle_smooth()
   return M.state_json()
 end
 
+------------------------------------------------------------ screen lock --
+-- Hyprland zooms the lock screen like everything else and reports no lock
+-- event, so the shell panel watches for the lock and calls these. The lock
+-- screen opens at 1x at once; unlocking glides back to the earlier zoom.
+function M.lock_begin()
+  if lock_active or not S.unzoom_on_lock then return M.state_json() end
+  lock_zoom = current_zoom()
+  lock_active = true
+  pending = 0
+  vel = 0
+  L = 0
+  pcall(hl.animation, { leaf = "zoomFactor", enabled = false })
+  apply()
+  apply_animation()
+  return M.state_json()
+end
+
+function M.lock_end()
+  if not lock_active then return M.state_json() end
+  lock_active = false
+  set_target(lock_zoom)
+  return M.state_json()
+end
+
 ------------------------------------------------------------------ binds --
 local function bind(keys, fn, opts, description)
   opts = opts or {}
@@ -399,7 +428,8 @@ local function configure_binds()
     pcall(hl.unbind, "SUPER + CTRL + Z")
     pcall(hl.unbind, "SUPER + CTRL + ALT + Z")
     bind("SUPER + CTRL + Z", M.zoom_in, { repeating = true }, "Zoom in")
-    bind("SUPER + CTRL + ALT + Z", M.reset, nil, "Reset zoom")
+    -- `locked`: also works at the lock screen.
+    bind("SUPER + CTRL + ALT + Z", M.reset, { locked = true }, "Reset zoom")
 
     -- Omarchy's other wheel binds, with the rate limit scroll_event_delay gave them.
     for _, b in ipairs({
@@ -457,6 +487,7 @@ function M.state_json()
     '"engine":"smooth-magnifier"',
     '"version":' .. json_string(M.version),
     '"zoom":' .. json_value(current_zoom()),
+    '"lock_active":' .. tostring(lock_active),
     '"settings":{' .. table.concat(parts, ",") .. "}",
   }, ",") .. "}"
 end

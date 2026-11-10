@@ -7,7 +7,7 @@ const vm = require("vm")
 
 const src = fs.readFileSync(path.join(__dirname, "..", "Model.js"), "utf8").replace(/^\.pragma library\s*/, "")
 const M = {}
-vm.runInNewContext(src + "\nthis.M = { MODIFIERS, normalize, luaTable, setCall, zoomCall, scrollCall, callFor, parseState, parseZoom, zoomToSlider, sliderToZoom, chordParts, setEnginePath, loadError }", M)
+vm.runInNewContext(src + "\nthis.M = { MODIFIERS, normalize, luaTable, setCall, zoomCall, scrollCall, callFor, parseState, parseZoom, zoomToSlider, sliderToZoom, chordParts, setEnginePath, loadError, sessionLocked }", M)
 const m = M.M
 
 let failures = 0
@@ -49,6 +49,15 @@ check(m.callFor("state") === "if not SmoothMagnifier then local ok, err = pcall(
 check(m.setCall({ inertia: true }).includes("pcall(dofile,") && m.setCall({ inertia: true }).endsWith("SmoothMagnifier.set({ inertia = true }) or 'null'"), "every call self-loads")
 check(m.loadError("error: cannot open file") === "cannot open file" && m.loadError("{\"engine\":1}") === "", "load errors surfaced")
 check(m.loadError("error: " + "x".repeat(1000)).length === 300, "load error text bounded")
+
+// Screen lock detection, from monitors' lastIpcObject.
+check(m.sessionLocked([{ solitaryBlockedBy: ["WINDOWS", "LOCK"] }]), "LOCK detected")
+check(!m.sessionLocked([{ solitaryBlockedBy: ["WINDOWS"] }, { solitaryBlockedBy: [] }]), "no lock")
+check(!m.sessionLocked([null, undefined, {}, { solitaryBlockedBy: "LOCK" }]), "missing or malformed data is not a lock")
+check(m.sessionLocked([{}, { solitaryBlockedBy: ["LOCK"] }]), "lock on any monitor counts")
+check(m.parseState(JSON.stringify({ engine: "smooth-magnifier", zoom: 1, lock_active: true, settings: {} })).lockActive === true, "lock state parsed")
+check(m.parseState(JSON.stringify({ engine: "smooth-magnifier", zoom: 1, lock_active: "yes", settings: {} })).lockActive === false, "lock state must be boolean")
+check(m.callFor("lockBegin").endsWith("SmoothMagnifier.lock_begin() or 'null'"), "lock call")
 
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

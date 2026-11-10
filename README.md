@@ -29,13 +29,19 @@ zoom.
 - **View settings:** smooth images (antialiasing), animation smoothness, the
   zoom level used when toggling on, maximum zoom, and restoring the zoom
   level at login.
+- **Readable lock screen.** Hyprland zooms the lock screen along with
+  everything else. When the screen locks while you are zoomed in, the plugin
+  zooms out at once, and glides back to your zoom after you unlock. You can
+  turn this off. Super + Ctrl + Alt + Z also resets the zoom at the lock
+  screen.
 - Follows the Omarchy theme. All text is in a translation catalog
   (`i18n/en.json`).
 
 ## Requirements
 
 - Omarchy (Quattro) with Hyprland 0.56 or newer and its Lua config
-  (`~/.config/hypr/hyprland.lua`).
+  (`~/.config/hypr/hyprland.lua`). Tested on 0.56.2. The Lua API calls and
+  options it uses were also checked against the 0.57.2 source.
 - Nothing else at runtime. The plugin uses `hyprctl` (part of Hyprland) and
   the shell's own Quickshell. No network access, no sudo, no services.
 - For development only: `lua` and `node`, to run the tests.
@@ -96,6 +102,12 @@ IPC: `omarchy-shell smooth-magnifier toggleZoom | zoomIn | zoomOut | resetZoom |
   is gone.
 - After a config reload, while you are zoomed in, the screen is at 1x for the
   moment it takes Hyprland to report the reload (typically under 50 ms).
+- Screen lock: Hyprland reports no lock event and Omarchy keeps its lock
+  state private, so while you are zoomed in (and only then) the panel reads
+  the monitor list over Hyprland's socket every 250 ms, as Omarchy's bar
+  does, and looks for `LOCK` the way `omarchy-hyprland-session-locked` does.
+  The lock screen may show zoomed for up to about half a second before it
+  zooms out.
 
 **Changes to Hyprland's behaviour.** Be aware of these before installing:
 

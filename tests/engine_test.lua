@@ -168,6 +168,29 @@ dofile(dir .. "/hypr/magnifier.lua")
 check(hl.cfg["cursor.zoom_factor"] == 1, "new session starts at 1x when restore is off")
 SmoothMagnifier.set({ restore_zoom = true })
 
+-- Screen lock: 1x at once, nothing saved while locked, zoom back on unlock.
+SmoothMagnifier.set_zoom(3.5)
+local saved_before = io.open(tmp .. "/smooth-magnifier/zoom"):read("a")
+anim_log = {}
+hl.animation = function(a) anim_log[#anim_log + 1] = { enabled = a.enabled, zoom = hl.cfg["cursor.zoom_factor"] }; hl.anim = a end
+SmoothMagnifier.lock_begin()
+check(hl.cfg["cursor.zoom_factor"] == 1, "lock: zoomed out")
+check(anim_log[1].enabled == false and hl.anim.enabled == true, "lock: instant (glide off for that change), glide back on")
+check(SmoothMagnifier.state_json():find('"lock_active":true', 1, true) ~= nil, "lock: state reports lock")
+SmoothMagnifier.lock_begin()
+SmoothMagnifier.reset()
+check(io.open(tmp .. "/smooth-magnifier/zoom"):read("a") == saved_before, "lock: saved zoom untouched while locked")
+SmoothMagnifier.lock_end()
+check(math.abs(hl.cfg["cursor.zoom_factor"] - 3.5) < 1e-3, "unlock: zoom restored")
+check(SmoothMagnifier.state_json():find('"lock_active":false', 1, true) ~= nil, "unlock: state clear")
+SmoothMagnifier.lock_end()
+check(math.abs(hl.cfg["cursor.zoom_factor"] - 3.5) < 1e-3, "stray unlock does nothing")
+SmoothMagnifier.set({ unzoom_on_lock = false })
+SmoothMagnifier.lock_begin()
+check(math.abs(hl.cfg["cursor.zoom_factor"] - 3.5) < 1e-3, "lock handling can be turned off")
+SmoothMagnifier.set({ unzoom_on_lock = true })
+check(hl.find("SUPER + CTRL + ALT + Z").opts.locked == true, "reset key works at the lock screen")
+
 -- Users who turned Omarchy's default bindings off do not get them back.
 _G.SmoothMagnifier = nil
 _G.hl = new_hl()

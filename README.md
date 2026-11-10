@@ -150,11 +150,14 @@ bug reports.
 
 ## Development
 
-```bash
-git clone https://github.com/develroads/magnifier.git ~/Code/develroads/magnifier
-ln -s ~/Code/develroads/magnifier ~/.config/omarchy/plugins/io.github.develroads.smooth-magnifier
-omarchy plugin enable io.github.develroads.smooth-magnifier
+To work on the plugin, keep a checkout of this repository wherever you
+like, link that folder to
+`~/.config/omarchy/plugins/io.github.develroads.smooth-magnifier`, and
+enable it with `omarchy plugin enable io.github.develroads.smooth-magnifier`.
 
+Run the tests from the checkout:
+
+```bash
 lua tests/engine_test.lua    # engine, against a stubbed Hyprland API
 node tests/model_test.js     # panel helpers, including injection cases
 ```

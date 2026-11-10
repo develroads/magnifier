@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.develroads.smooth-magnifier",
+  "name": "Smooth Magnifier",
+  "version": "1.0.0",
+  "author": "develroads",
+  "license": "MIT",
+  "description": "Smooth, macOS-style screen zoom with scroll and keyboard control, and a settings panel in the bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Smooth Magnifier",
+    "description": "Zoom level at a glance; click for settings, right-click to toggle zoom, scroll to zoom.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "showLevel": true
+    },
+    "schema": [
+      {
+        "key": "showLevel",
+        "type": "boolean",
+        "label": "Show zoom level beside the icon",
+        "defaultValue": true
+      }
+    ]
+  }
+}

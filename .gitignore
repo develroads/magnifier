@@ -1,0 +1,10 @@
+# Editor and OS clutter
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# Local backups
+*.bak
+*.bak.*

@@ -40,6 +40,8 @@ local HOME = os.getenv("HOME") or ""
 local STATE_DIR = (os.getenv("XDG_STATE_HOME") or (HOME .. "/.local/state")) .. "/smooth-magnifier"
 local SETTINGS_FILE = STATE_DIR .. "/settings.lua"
 local ZOOM_FILE = STATE_DIR .. "/zoom"
+local RUNTIME_DIR = os.getenv("XDG_RUNTIME_DIR")
+local SESSION_FILE = RUNTIME_DIR and (RUNTIME_DIR .. "/smooth-magnifier-zoom") or nil
 
 local MODIFIERS = { "SUPER + CTRL", "SUPER + SHIFT", "CTRL + ALT", "SUPER + CTRL + ALT" }
 local FOLLOW = { "continuous", "edge", "center" }
@@ -206,10 +208,16 @@ local function apply()
   hl.config({ cursor = { zoom_factor = z } })
 end
 
+local session_zoom = nil   -- last zoom written to SESSION_FILE
+
 local function persist_zoom()
   local z = current_zoom()
+  local text = string.format("%.4f\n", z)
+  if SESSION_FILE and not (session_zoom and math.abs(z - session_zoom) < 1e-4) then
+    if write_file(SESSION_FILE, text) then session_zoom = z end
+  end
   if saved_zoom and math.abs(z - saved_zoom) < 1e-4 then return end
-  if write_file(ZOOM_FILE, string.format("%.4f\n", z)) then saved_zoom = z end
+  if write_file(ZOOM_FILE, text) then saved_zoom = z end
 end
 
 local function clamp_target()
@@ -501,15 +509,21 @@ end, { timeout = throttle_ms, type = "repeat" })
 cooler:set_enabled(false)
 
 apply_appearance()
-apply_animation()
 configure_binds()
 
--- A config reload keeps the zoom you had; a fresh login restores the saved
--- one when that is turned on.
-local start = prev_zoom
-if not start and S.restore_zoom then start = tonumber((read_file(ZOOM_FILE) or ""):match("[%d%.]+")) end
-saved_zoom = tonumber((read_file(ZOOM_FILE) or ""):match("[%d%.]+"))
+-- Within a session (a config reload or a shell restart) the zoom you had comes
+-- back; it is kept in XDG_RUNTIME_DIR, which is emptied at logout. A new
+-- session restores the saved zoom only when that setting is on.
+local function file_zoom(path) return tonumber((read_file(path) or ""):match("[%d%.]+")) end
+local start = prev_zoom or (SESSION_FILE and file_zoom(SESSION_FILE))
+if not start and S.restore_zoom then start = file_zoom(ZOOM_FILE) end
+saved_zoom = file_zoom(ZOOM_FILE)
+
+-- Put the zoom back at once rather than animating up from 1x, then turn the
+-- glide on for everything after.
+pcall(hl.animation, { leaf = "zoomFactor", enabled = false })
 set_target(start or 1)
+apply_animation()
 
 _G.SmoothMagnifier = M
 return M

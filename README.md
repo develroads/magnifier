@@ -46,32 +46,22 @@ zoom.
 omarchy plugin add https://github.com/develroads/magnifier.git --enable
 ```
 
-The zoom engine runs inside Hyprland, so Hyprland's config has to load it.
-Open the panel from the magnifier icon and choose **Set up engine… → Add to
-hyprland.lua**. Nothing is changed until you confirm. Setup adds one marked
-block to the end of `~/.config/hypr/hyprland.lua` and first saves a backup
-next to the file (`hyprland.lua.bak.smooth-magnifier.<time>`). Hyprland
-reloads its config automatically and the panel connects.
-
-To do the same from a terminal:
-
-```bash
-~/.config/omarchy/plugins/io.github.develroads.smooth-magnifier/bin/engine-setup install
-```
+That's it. No Hyprland config file is edited. The plugin loads its zoom engine
+into Hyprland's running Lua state (`hyprctl repl`) as soon as the bar
+starts. Hyprland starts its Lua state afresh on every config reload, so the
+plugin loads the engine again the moment Hyprland reports the reload,
+usually within a few hundredths of a second. Your zoom level is kept.
 
 ## Remove
 
 ```bash
-~/.config/omarchy/plugins/io.github.develroads.smooth-magnifier/bin/engine-setup uninstall
 omarchy plugin remove io.github.develroads.smooth-magnifier
+hyprctl reload
 ```
 
-`uninstall` removes only the marked block, after saving a backup. Hyprland
-reloads, and all binds and settings it changed return to normal. If you remove
-the plugin first, the leftover block does nothing (it checks that the engine
-file exists), and you can delete it from `hyprland.lua` by hand. Saved
-settings live in `~/.local/state/smooth-magnifier/`. Delete that folder for a
-clean slate.
+The reload clears the engine from Hyprland at once; otherwise it stays until
+the next reload or login. Nothing is left in your config. Saved settings live
+in `~/.local/state/smooth-magnifier/`; delete that folder for a clean slate.
 
 ## Shortcuts
 
@@ -95,7 +85,17 @@ IPC: `omarchy-shell smooth-magnifier toggleZoom | zoomIn | zoomOut | resetZoom |
 - `Panel.qml` is the bar widget and panel. It talks to the engine through
   `hyprctl repl`. `Model.js` builds those calls from a fixed whitelist of
   setting keys and checked values, and validates every reply.
-- `bin/engine-setup` adds or removes the loader block in `hyprland.lua`.
+- Loading: every call the panel makes starts with "load the engine if
+  Hyprland doesn't have it" (`pcall(dofile, <plugin>/hypr/magnifier.lua)`).
+  The panel also makes a call whenever Hyprland emits `configreloaded`. On
+  load, the engine puts your zoom back instantly. Within a session the level
+  comes from `$XDG_RUNTIME_DIR/smooth-magnifier-zoom`; at a new login it is
+  restored only if that setting is on.
+- The engine runs while the widget is in your bar. If you take the widget out
+  of the bar, the engine stays until the next config reload or login, then it
+  is gone.
+- After a config reload, while you are zoomed in, the screen is at 1x for the
+  moment it takes Hyprland to report the reload (typically under 50 ms).
 
 **Changes to Hyprland's behaviour.** Be aware of these before installing:
 

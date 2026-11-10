@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
@@ -105,6 +106,7 @@ Panel {
     var state = Model.parseState(text)
     engineChecked = true
     engineReady = state.ok
+    loadError = state.ok ? "" : (enginePathOk ? Model.loadError(text) : "unsupported plugin path")
     if (!state.ok) return
     if (dragZoom < 1 && pendingZoom < 1) zoom = state.zoom
     // Keep optimistic values for changes still on their way.
@@ -134,41 +136,25 @@ Panel {
     onLoaded: if (root.dragZoom < 1) root.zoom = Model.parseZoom(text())
   }
 
-  // ---------------------------------------------------------------- setup
-  // The engine has to be loaded by Hyprland's config. bin/engine-setup adds
-  // one marked block to hyprland.lua (after a backup), and runs only after
-  // the user confirms it in the panel.
-  property bool setupConfirm: false
-  property bool setupRunning: false
-  property string setupError: ""
-  readonly property string setupScript: String(Qt.resolvedUrl("bin/engine-setup")).replace(/^file:\/\//, "")
+  // --------------------------------------------------------------- loading
+  // No Hyprland config edit: the engine is loaded into Hyprland's Lua state
+  // through `hyprctl repl` (every call loads it first when it is missing).
+  // A config reload starts Hyprland's Lua state afresh, so the engine is
+  // loaded again as soon as Hyprland reports the reload.
+  property string loadError: ""
+  property bool enginePathOk: false
 
-  function runSetup() {
-    if (setupProc.running) return
-    setupError = ""
-    setupRunning = true
-    setupProc.command = [setupScript, "install"]
-    setupProc.running = true
-  }
-
-  Process {
-    id: setupProc
-    stderr: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: if (text.trim() !== "") root.setupError = text.trim().slice(0, 300)
-    }
-    onExited: function(exitCode) {
-      root.setupRunning = false
-      root.setupConfirm = false
-      if (exitCode === 0) recheck.restart()
-      else if (root.setupError === "") root.setupError = "engine-setup exited with " + exitCode
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "configreloaded") root.engineAction("state")
     }
   }
 
-  // Hyprland reloads its config on save; give it a moment, then look again.
-  Timer { id: recheck; interval: 1500; onTriggered: root.engineAction("state") }
-
-  Component.onCompleted: engineAction("state")
+  Component.onCompleted: {
+    enginePathOk = Model.setEnginePath(String(Qt.resolvedUrl("hypr/magnifier.lua")).replace(/^file:\/\//, ""))
+    engineAction("state")
+  }
   onOpenedChanged: if (opened) engineAction("state")
 
   ShellIpc {
@@ -316,50 +302,28 @@ Panel {
 
             PlainText {
               width: parent.width
-              text: root.setupConfirm ? strings.t("setup.confirm") : strings.t("missing.body")
+              text: strings.t("missing.body")
               wrapMode: Text.Wrap
-              color: root.setupConfirm ? root.fg : root.dim
+              color: root.dim
               font.pixelSize: Style.font.bodySmall
-            }
-
-            Row {
-              spacing: Style.space(6)
-
-              Button {
-                text: root.setupConfirm ? strings.t("setup.add") : strings.t("setup.start")
-                foreground: root.fg
-                fontFamily: root.fontFamily
-                fontSize: Style.font.bodySmall
-                bordered: true
-                active: root.setupConfirm
-                iconSpinning: root.setupRunning
-                onClicked: {
-                  if (root.setupRunning) return
-                  if (root.setupConfirm) root.runSetup()
-                  else root.setupConfirm = true
-                }
-              }
-
-              Button {
-                text: root.setupConfirm ? strings.t("setup.cancel") : strings.t("missing.retry")
-                foreground: root.fg
-                fontFamily: root.fontFamily
-                fontSize: Style.font.bodySmall
-                bordered: true
-                onClicked: {
-                  if (root.setupConfirm) root.setupConfirm = false
-                  else root.engineAction("state")
-                }
-              }
             }
 
             PlainText {
               width: parent.width
-              visible: root.setupError !== ""
-              text: root.setupError
+              visible: root.loadError !== ""
+              text: root.loadError
               wrapMode: Text.Wrap
               color: Commons.Color.urgent
               font.pixelSize: Style.font.caption
+            }
+
+            Button {
+              text: strings.t("missing.retry")
+              foreground: root.fg
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+              bordered: true
+              onClicked: root.engineAction("state")
             }
           }
 

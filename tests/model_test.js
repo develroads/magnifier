@@ -7,7 +7,7 @@ const vm = require("vm")
 
 const src = fs.readFileSync(path.join(__dirname, "..", "Model.js"), "utf8").replace(/^\.pragma library\s*/, "")
 const M = {}
-vm.runInNewContext(src + "\nthis.M = { MODIFIERS, normalize, luaTable, setCall, zoomCall, scrollCall, callFor, parseState, parseZoom, zoomToSlider, sliderToZoom, chordParts }", M)
+vm.runInNewContext(src + "\nthis.M = { MODIFIERS, normalize, luaTable, setCall, zoomCall, scrollCall, callFor, parseState, parseZoom, zoomToSlider, sliderToZoom, chordParts, setEnginePath, loadError }", M)
 const m = M.M
 
 let failures = 0
@@ -36,6 +36,19 @@ check(m.parseZoom("abc") === 1 && m.parseZoom("3.5\n") === 3.5 && m.parseZoom("1
 check(Math.abs(m.sliderToZoom(m.zoomToSlider(4, 15), 15) - 4) < 1e-9, "slider log mapping round-trips")
 check(m.sliderToZoom(0.001, 15) === 1, "slider snaps to 1x near the start")
 check(m.chordParts("SUPER + CTRL").join(" ") === "Super Ctrl", "chord labels")
+
+// Self-loading: the engine path is checked before it is written into Lua.
+check(!m.setEnginePath("/tmp/x\"); os.execute(\"id\") --.lua"), "path with quotes rejected")
+check(!m.setEnginePath("relative/magnifier.lua"), "relative path rejected")
+check(!m.setEnginePath("/home/u/../../etc/x.lua"), "path with .. rejected")
+check(!m.setEnginePath("/home/u/plugins/x/hypr/magnifier.sh"), "non-lua path rejected")
+check(m.callFor("state").startsWith("return SmoothMagnifier"), "no loader while the path is unset")
+const P = "/home/u/.config/omarchy/plugins/io.github.develroads.smooth-magnifier/hypr/magnifier.lua"
+check(m.setEnginePath(P), "plugin path accepted")
+check(m.callFor("state") === "if not SmoothMagnifier then local ok, err = pcall(dofile, \"" + P + "\") if not ok then return 'error: ' .. tostring(err) end end return SmoothMagnifier and SmoothMagnifier.state_json() or 'null'", "state call loads the engine first")
+check(m.setCall({ inertia: true }).includes("pcall(dofile,") && m.setCall({ inertia: true }).endsWith("SmoothMagnifier.set({ inertia = true }) or 'null'"), "every call self-loads")
+check(m.loadError("error: cannot open file") === "cannot open file" && m.loadError("{\"engine\":1}") === "", "load errors surfaced")
+check(m.loadError("error: " + "x".repeat(1000)).length === 300, "load error text bounded")
 
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

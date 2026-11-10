@@ -89,10 +89,36 @@ var CALLS = {
   resetSettings: "SmoothMagnifier.reset_settings()"
 }
 
+// Where hypr/magnifier.lua lives; set once by the panel. The path is written
+// into Lua source, so only plain path characters are accepted.
+var enginePath = ""
+
+function setEnginePath(path) {
+  var p = String(path || "")
+  enginePath = /^\/[A-Za-z0-9._\/+-]+\.lua$/.test(p) && p.indexOf("..") < 0 ? p : ""
+  return enginePath !== ""
+}
+
+// Every call loads the engine first when Hyprland does not have it (after
+// login, a config reload, or a shell restart), so nothing has to be added to
+// hyprland.lua. A load failure answers "error: ..." instead of raising, which
+// would otherwise sit in `hyprctl configerrors` until the next reload.
+function loader() {
+  if (enginePath === "") return ""
+  return "if not SmoothMagnifier then local ok, err = pcall(dofile, " + JSON.stringify(enginePath)
+    + ") if not ok then return 'error: ' .. tostring(err) end end "
+}
+
 // A guarded expression: answers `null` instead of an error when the engine
-// is not loaded, so the panel can say so.
+// is still not loaded, so the panel can say so.
 function guarded(call) {
-  return "return SmoothMagnifier and " + call + " or 'null'"
+  return loader() + "return SmoothMagnifier and " + call + " or 'null'"
+}
+
+// The reason a load failed, from a reply like "error: ...", or "".
+function loadError(text) {
+  var raw = String(text || "").trim()
+  return raw.indexOf("error:") === 0 ? raw.slice(6).trim().slice(0, 300) : ""
 }
 
 function callFor(action) {

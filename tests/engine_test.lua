@@ -8,7 +8,7 @@ os.execute("mkdir -p '" .. tmp .. "'")
 
 local real_getenv = os.getenv
 os.getenv = function(k)
-  if k == "XDG_STATE_HOME" then return tmp end
+  if k == "XDG_STATE_HOME" or k == "XDG_RUNTIME_DIR" then return tmp end
   return real_getenv(k)
 end
 
@@ -144,8 +144,29 @@ check(SmoothMagnifier.state_json():find('"modifier":"CTRL + ALT"', 1, true) ~= n
 -- Fresh login: restored from file.
 _G.SmoothMagnifier = nil
 _G.hl = new_hl()
+local anim_log = {}
+hl.animation = function(a) anim_log[#anim_log + 1] = { enabled = a.enabled, zoom = hl.cfg["cursor.zoom_factor"] }; hl.anim = a end
 dofile(dir .. "/hypr/magnifier.lua")
 check(math.abs(hl.cfg["cursor.zoom_factor"] - 3) < 1e-3, "zoom restored on fresh start")
+check(anim_log[1].enabled == false and anim_log[1].zoom == nil, "restore happens with the glide off (no zoom-in animation)")
+check(hl.anim.enabled == true, "glide back on after the restore")
+
+-- Config reload in the same session (fresh Lua state): zoom kept even with
+-- restore-at-login off, via the session file.
+SmoothMagnifier.set({ restore_zoom = false })
+SmoothMagnifier.set_zoom(3.5)  -- max_zoom is 4 from an earlier test
+_G.SmoothMagnifier = nil
+_G.hl = new_hl()
+dofile(dir .. "/hypr/magnifier.lua")
+check(math.abs(hl.cfg["cursor.zoom_factor"] - 3.5) < 1e-3, "reload keeps zoom via the session file")
+
+-- New session (runtime dir emptied at logout) with restore off: starts at 1x.
+os.remove(tmp .. "/smooth-magnifier-zoom")
+_G.SmoothMagnifier = nil
+_G.hl = new_hl()
+dofile(dir .. "/hypr/magnifier.lua")
+check(hl.cfg["cursor.zoom_factor"] == 1, "new session starts at 1x when restore is off")
+SmoothMagnifier.set({ restore_zoom = true })
 
 -- Users who turned Omarchy's default bindings off do not get them back.
 _G.SmoothMagnifier = nil

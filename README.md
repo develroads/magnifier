@@ -34,9 +34,11 @@ zoom.
   zooms out at once, and glides back to your zoom after you unlock. You can
   turn this off. Super + Ctrl + Alt + Z also resets the zoom at the lock
   screen.
-- **Zoom on the lock screen (optional).** Turn on "Allow zooming on the lock
-  screen" and all zoom shortcuts keep working while the screen is locked,
-  as on macOS. Off by default.
+- **Zoom on the lock screen.** The lock screen opens at 1x, and all zoom
+  shortcuts keep working while it is locked, as on macOS, so you can zoom in
+  to read it. Unlocking returns you to the zoom from before the lock. Turn
+  off "Allow zooming on the lock screen" if you'd rather keep zoom keys out
+  of the lock screen.
 - Follows the Omarchy theme. All text is in a translation catalog
   (`i18n/en.json`).
 

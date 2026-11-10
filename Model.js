@@ -23,7 +23,7 @@ var SCHEMA = {
   max_zoom:         { kind: "number", min: 2.0, max: 40.0, value: 15.0 },
   restore_zoom:     { kind: "boolean", value: true },
   unzoom_on_lock:   { kind: "boolean", value: true },
-  lock_screen_zoom: { kind: "boolean", value: false }
+  lock_screen_zoom: { kind: "boolean", value: true }
 }
 
 var MAX_RESPONSE = 8192

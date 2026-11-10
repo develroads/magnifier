@@ -62,7 +62,7 @@ local SCHEMA = {
   max_zoom         = { kind = "number", min = 2.0, max = 40.0, default = 15.0 },
   restore_zoom     = { kind = "boolean", default = true },
   unzoom_on_lock   = { kind = "boolean", default = true },
-  lock_screen_zoom = { kind = "boolean", default = false },
+  lock_screen_zoom = { kind = "boolean", default = true },
 }
 
 local KEYS = {}
